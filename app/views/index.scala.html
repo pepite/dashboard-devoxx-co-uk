@@ -1,0 +1,194 @@
+@(message: String, checkedIn: scala.collection.immutable.Map[String, String], motd: String)(implicit request: RequestHeader)
+
+@main("Joy of Coding") {
+
+<div id="corner_logo">
+  <div style="font-size:x-small;color: #BBB; font-family: Arial; text-shadow: 0px 1px 0px white;">Brought to you by </div>
+  <img src="@routes.Assets.at("images/commons/logo-lunatech.png")"/>
+</div>
+
+<div id="Header">
+  <div id="Tabs">
+    <ul id="MainTabs">
+      <li><a href="/"  class="current" title="Daily view">Business Design Centre</a></li>
+
+    </ul>
+  </div>
+</div>
+
+<div id="Wrapper">
+  <div id="Container" style="position:relative; ">
+   <div class="Left" >
+       <div id="background" style="min-height: 500px;background-image: url(@routes.Assets.at("images/commons/logo.png")); position: relative; top: 50px;background-repeat: no-repeat; opacity: 0.3; margin-left:auto;margin-right: auto; height: 200px;"></div>
+       <div class="col" style="top: -500px; position: relative; padding:0px; z-index: -1; min-height: 600px; " >
+
+         <div style="padding: 10px 30px 20px 20px;">
+         <div id="onError" style="display:none" class="alert-message error">
+          <p>
+           <strong>Oops!</strong> <span></span>
+         </p>
+        </div>
+        <h1 style="top:5px; font-family: Helvetica Neue;font-weight: 800; font-size: 22pt;"><span id="nb_attendees">@checkedIn.size</span> persons present at the conference</h1>
+
+       <div class="chat" >
+        <ul id="members">
+          @checkedIn.map {
+          case (key, value) => {
+          <li id="@key" ><img style="width:80px; height: 80px;" src="http://api.twitter.com/1/users/profile_image?screen_name=@key&size=bigger"/><span class="title" >@@@key</span></li>
+        }
+      }
+    </ul>
+  </div>
+</div>
+</div>
+</div>
+
+
+
+</div>
+
+
+<script type="text/javascript" charset="utf-8">
+
+$(function() {
+
+var $el = $('#slideshow');
+    $el.slideshow({
+    duration: 400,
+    delay: 3000,
+    selector: '> img',
+    transition: 'push(up)',
+    autoPlay: true
+
+});
+
+
+ var WS = window['MozWebSocket'] ? MozWebSocket : WebSocket
+ var chatSocket = new WS("@routes.Application.listen().webSocketURL()")
+
+ var sendMessage = function(kind, data) {
+  chatSocket.send(JSON.stringify(
+    {kind: kind,
+      user: '',
+      message: data}
+      ))
+
+}
+
+$('#motd').inlineEdit({
+  buttonText: 'Update',
+  save: function(e, data) {
+    sendMessage('motd', data.value)
+    return true;
+  }
+});
+
+var receiveEvent = function(event) {
+  var data = JSON.parse(event.data)
+
+                              // Handle errors
+                              if(data.error) {
+                                chatSocket.close()
+                                $("#onError span").text(data.error)
+                                $("#onError").show()
+                                return
+                              } else {
+                                $("#onError").hide()
+                              }
+
+                              var escapedName = data.user.replace(/[\.|@@]/g, "_");
+
+                              // Update the members list
+                              if (data.kind == 'join') {
+                                var name = data.user.toLowerCase();
+                                if ($('#' + escapedName).length == 0) {
+                                 $("#members").append('<li id="' + escapedName + '" style="display:none; "><img style="width:80px; height: 80px;" src="http://api.twitter.com/1/users/profile_image?screen_name=' + name + '&size=bigger"/><span class="title" >@@' + data.user + '</span></li>')
+                                  $("#" + escapedName).effect("pulsate", { times:3, complete : function() { $("#nb_attendees").text($("#members li").size());  }}, 2000);
+                                }
+
+
+                              } 
+                              
+                              if (data.kind == 'quit') {
+                                $("#" + escapedName).effect("pulsate", { times:3}, 2000).slideUp("1s", function() { $(this).remove(); $("#nb_attendees").text($("#members li").size());  });
+
+                              }
+                              
+                              if (data.kind == 'motd') {
+                                $("#motd").text(data.message);
+                                $("#motd").effect("pulsate", { times:3 }, 2000)
+                              }
+                            }
+
+                            chatSocket.onmessage = receiveEvent
+
+
+                            var setTime = function () {
+                              $("#date").text(moment().format('ddd. Do MMMM, YYYY - hh:mm:ss '))
+                              setTimeout(setTime, 1000)
+                            }
+                            setTime()
+
+                          })
+
+</script>
+    <div id="Sidebar" class="admin_user">
+        <div id="SidebarTop">
+
+            <div class="participants">
+                <div id="room_locking">
+                    <h2>
+                        <span class="room_actions">
+                        </span>
+                        <span id="date">Wed. 12th April, 2012</span>
+
+                    </h2>
+
+
+                    <h3>
+                        <span class="room_actions">
+                        </span>
+                           Welcome to Devoxx UK
+                    </h3>
+
+                    <p id="motd" style="margin-left:10px;font-family: monospace">@motd</p>
+
+
+                    <h3>
+                        <span class="room_actions">
+                        </span>
+                            What you say about Devoxx UK
+                    </h3>
+                    <p>
+                    <div id="twitterwall" style="max-height: 400px">
+                        <ul id="tweets"></ul>
+                    </div>
+                    </p>
+                    <script type="text/html" id="tweet_template">
+                        <li id="<%=id%>">
+                            <div class="tweet">
+                                <div class="vcard">
+                                    <a href="http://twitter.com/<%=screen_name%>" class="url"><img style="height: 48px; width: 48px;" alt="@@<%=screen_name%>" class="photo fn" height="48" src="<%=profile_image_url%>" width="48" /></a>
+                                </div>
+                                <div class="hentry">
+                                    <strong><a href="http://twitter.com/<%=screen_name%>" title="<%=name%>"><%=screen_name%></a></strong>
+                                    <span class="entry-content"><%=tweet%></span>
+                                    <span class="meta entry-meta"><a href="http://twitter.com/<%=screen_name%>/status/<%=id%>" class="entry-date" rel="bookmark"><span class="published" title="<%=created_at%>"><%=nice_date%></span></a></span>
+                                </div>
+                                <% if (embeds.length) for (var i = 0; i < embeds.length; i++) { %>
+                                <%=embeds[i]%>
+                                <% } %>
+                            </div>
+                        </li>
+                    </script>
+
+
+                    <script src="@routes.Assets.at("javascripts/config.js")"></script>
+                    <script src="@routes.Assets.at("javascripts/twitterlib.js")"></script>
+                    <script src="@routes.Assets.at("javascripts/app.js")"></script>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+}
